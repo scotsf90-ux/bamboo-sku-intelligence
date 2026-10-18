@@ -2,9 +2,10 @@ name: Weekly Sell-Through Refresh
 
 on:
   schedule:
-    # Monday after the API's Sunday 07:00 Pacific completed-week refresh.
+    # Check daily after the API's Sunday 07:00 Pacific completed-week refresh.
+    # This picks up Sunday reports and subsequent source corrections promptly.
     # 15:30 UTC is 08:30 PDT / 07:30 PST.
-    - cron: '30 15 * * 1'
+    - cron: '30 15 * * *'
   workflow_dispatch:
 
 permissions:

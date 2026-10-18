@@ -2,7 +2,7 @@
 """Build the 12-week allocation sell-through dataset used by the dashboard.
 
 The Bamboo endpoint returns completed Sunday-Saturday allocation periods. This
-job runs on Monday, normalizes the response, removes samples/non-merchandise,
+job checks daily, normalizes the response, removes samples/non-merchandise,
 and writes an auditable product-level history plus conservative action signals.
 """
 
@@ -273,7 +273,7 @@ def build_dataset(api):
             "timezone": allocations[-1].get("timezone") if allocations else "America/Los_Angeles",
             "sold_order_statuses": api.get("sold_order_statuses", []),
             "data_status": "Historical completed weekly allocations",
-            "period_note": "Source periods run Sunday through Saturday. The refresh runs Monday after the prior period closes.",
+            "period_note": "Source periods run Sunday through Saturday. The refresh checks daily for newly completed periods and source corrections.",
         },
         "criteria": {
             "exact_sellout": "Allocated units > 0, sold units > 0, and unsold units = 0.",

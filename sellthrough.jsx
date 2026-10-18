@@ -246,20 +246,36 @@ function SellThroughPanel() {
   const [signal, setSignal] = useState('All');
   const [brand, setBrand] = useState('All');
   const [category, setCategory] = useState('All');
-  const [decisionReady, setDecisionReady] = useState(true);
+  const [decisionReady, setDecisionReady] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [sort, setSort] = useState({field:'priority', dir:'asc'});
   const [limit, setLimit] = useState(200);
   const [picked, setPicked] = useState(null);
 
   useEffect(() => {
-    fetch(SELLTHROUGH_DATA_URL + '?v=' + (window.__BAMBOO_BUILD || Date.now()), {cache:'no-cache'})
-      .then(response => {
-        if (!response.ok) throw new Error('Weekly sell-through data returned ' + response.status);
-        return response.json();
-      })
-      .then(payload => setData(expandSellThroughHistory(payload)))
-      .catch(err => setError(String(err)));
-  }, []);
+    let active = true;
+    let inFlight = false;
+    const controller = new AbortController();
+    const refresh = () => {
+      if (inFlight) return;
+      inFlight = true;
+      setRefreshing(true);
+      fetch(SELLTHROUGH_DATA_URL + '?v=' + Date.now(), {cache:'no-store', signal:controller.signal})
+        .then(response => {
+          if (!response.ok) throw new Error('Weekly sell-through data returned ' + response.status);
+          return response.json();
+        })
+        .then(payload => { if (active) { setData(expandSellThroughHistory(payload)); setError(null); } })
+        .catch(err => { if (active && err.name !== 'AbortError') setError(String(err)); })
+        .finally(() => { inFlight = false; if (active) setRefreshing(false); });
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    refresh();
+    const timer = window.setInterval(refresh, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [refreshKey]);
 
   const brands = useMemo(() => data ? [...new Set(data.products.map(p => p.brand_name))].sort() : [], [data]);
   const categories = useMemo(() => data ? [...new Set(data.products.map(p => p.category_name))].sort() : [], [data]);
@@ -296,7 +312,7 @@ function SellThroughPanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  if (error) return <div className="h-full grid place-items-center bg-slate-50"><div className="border border-rose-200 bg-white rounded-xl p-6 max-w-md"><h2 className="font-display text-xl font-semibold text-rose-800">Sell-through data unavailable</h2><p className="text-sm text-slate-600 mt-2">{error}</p><p className="text-xs text-slate-500 mt-3">Run the weekly refresh or check the GitHub Action.</p></div></div>;
+  if (error && !data) return <div className="h-full grid place-items-center bg-slate-50"><div className="border border-rose-200 bg-white rounded-xl p-6 max-w-md"><h2 className="font-display text-xl font-semibold text-rose-800">Sell-through data unavailable</h2><p className="text-sm text-slate-600 mt-2">{error}</p><button className="btn btn-ghost mt-3" onClick={()=>setRefreshKey(key=>key+1)}>Retry loading data</button></div></div>;
   if (!data) return <div className="h-full p-6 bg-slate-50"><div className="h-52 shimmer rounded-xl"></div><div className="mt-4 h-10 shimmer rounded"></div>{Array.from({length:10}).map((_,i)=><div key={i} className="mt-2 h-8 shimmer rounded"></div>)}</div>;
 
   const summary = data.summary;
@@ -305,6 +321,7 @@ function SellThroughPanel() {
   const recurring = data.products.filter(p => p.signal === 'Chronic sellout' || p.signal === 'Recurring sellout').length;
   const fast = data.products.filter(p => p.signal === 'Consistent fast mover' || p.signal === 'Emerging shortage').length;
   const sourceTime = data.source.generated_at ? new Date(data.source.generated_at).toLocaleString('en-US', {timeZone:data.source.timezone, month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', timeZoneName:'short'}) : 'Unknown';
+  const dataAgeDays = summary.period_to ? (Date.now() - Date.parse(summary.period_to + 'T23:59:59Z')) / 86400000 : Infinity;
 
   return (
     <div className="h-full overflow-auto bg-slate-50">
@@ -313,12 +330,13 @@ function SellThroughPanel() {
           <div>
             <div className="text-[10px] uppercase tracking-[.18em] text-emerald-300 font-semibold">Weekly allocation pressure</div>
             <h2 className="font-display text-[30px] leading-tight font-semibold mt-1">Sellout Intelligence</h2>
-            <p className="text-[12px] text-slate-300 mt-2 max-w-2xl leading-relaxed">Find products that repeatedly exhaust their allocation, separate real shortages from volatile one-off allocations, and set the next volume or pricing test from twelve completed weeks.</p>
+            <p className="text-[12px] text-slate-300 mt-2 max-w-2xl leading-relaxed">Find products that repeatedly exhaust their allocation and inspect every eligible category across {summary.week_count} completed weeks. Short-history products remain visible with a Limited history label.</p>
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-4 text-[10px] text-slate-400 font-mono">
               <span>Historical · {fmtShortDate(summary.period_from)}–{fmtShortDate(summary.period_to)}</span>
               <span>{summary.week_count} completed weeks</span>
               <span>WA · {data.source.timezone}</span>
-              <span>Refreshed {sourceTime}</span>
+              <span>Source generated {sourceTime}</span>
+              <span>Checks daily · reloads every 5 minutes</span>
             </div>
           </div>
           <div>
@@ -332,6 +350,7 @@ function SellThroughPanel() {
       </div>
 
       <div className="max-w-[1800px] mx-auto px-5 py-4">
+        {(error || dataAgeDays > 8) && <div role="status" className="mb-3 border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-3 text-xs">{error ? 'Could not reload the latest snapshot. Showing the last successfully loaded data. Try Reload data.' : 'The latest completed period is more than eight days old. Check the daily refresh workflow.'}</div>}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-4">
           {[
             ['Chronic sellouts', summary.chronic_sellout_count, 'High-confidence volume pressure'],
@@ -348,9 +367,11 @@ function SellThroughPanel() {
           </select>
           <select value={brand} onChange={e=>setBrand(e.target.value)} className="text-xs max-w-[190px]" aria-label="Filter by brand"><option value="All">All brands</option>{brands.map(value=><option key={value}>{value}</option>)}</select>
           <select value={category} onChange={e=>setCategory(e.target.value)} className="text-xs max-w-[230px]" aria-label="Filter by category"><option value="All">All categories</option>{categories.map(value=><option key={value}>{value}</option>)}</select>
-          <label className="flex items-center gap-1.5 text-[11px] text-slate-600 ml-1"><input type="checkbox" checked={decisionReady} onChange={e=>setDecisionReady(e.target.checked)} /> Decision-ready only</label>
+          <label title="Optional filter: hides products with fewer than four offered weeks or median weekly allocation below 25 units." className="flex items-center gap-1.5 text-[11px] text-slate-600 ml-1"><input type="checkbox" checked={decisionReady} onChange={e=>setDecisionReady(e.target.checked)} /> Decision-ready only (4+ weeks, 25+ units)</label>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-[10px] font-mono text-slate-500 tabular-nums">{fmtN(filtered.length)} products</span>
+            <button className="btn btn-ghost" disabled={refreshing} onClick={()=>setRefreshKey(key=>key+1)}>{refreshing ? 'Reloading…' : 'Reload data'}</button>
+            <button className="btn btn-ghost" onClick={()=>{setQuery('');setSignal('All');setBrand('All');setCategory('All');setDecisionReady(false);}}>Reset filters</button>
             <button className="btn btn-ghost" onClick={()=>exportSellThroughCsv(filtered)}>Download CSV</button>
           </div>
         </div>
@@ -374,6 +395,7 @@ function SellThroughPanel() {
                 <th className="text-left">Pricing</th>
               </tr></thead>
               <tbody>
+                {visible.length === 0 && <tr><td colSpan={13} className="p-6 text-center text-slate-600">No products match these filters.{decisionReady && <> The optional Decision-ready filter hides short-history and small-allocation products. <button className="btn btn-ghost ml-2" onClick={()=>setDecisionReady(false)}>Include all history</button></>}</td></tr>}
                 {visible.map(product => (
                   <tr key={product.product_id} onClick={()=>setPicked(product)} className="cursor-pointer" tabIndex="0" onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')setPicked(product)}}>
                     <td className="max-w-[300px]"><div className="font-semibold text-slate-900 truncate" title={product.product_name}>{product.product_name}</div><div className="text-[9px] font-mono text-slate-400 mt-0.5">{product.weeks_available} weeks · {fmtN(product.total_sold_units)} sold</div></td>

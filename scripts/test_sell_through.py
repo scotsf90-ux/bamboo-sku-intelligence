@@ -1,6 +1,6 @@
 import unittest
 
-from refresh_sell_through import classify, percentile, weighted_sell_through
+from refresh_sell_through import build_dataset, classify, percentile, weighted_sell_through
 
 
 def row(allocated, sold):
@@ -44,6 +44,20 @@ class SellThroughRulesTest(unittest.TestCase):
 
     def test_weighted_sell_through_uses_units(self):
         self.assertAlmostEqual(weighted_sell_through([row(100, 100), row(900, 0)]), 0.1)
+
+    def test_short_history_flower_stays_in_dataset(self):
+        api = {"allocations": [{
+            "inventory_allocation_id": "week-a", "period_from": "2026-10-11",
+            "period_to": "2026-10-17", "timezone": "America/Los_Angeles",
+            "products": [{"product_id": "flower-a", "product_name": "Sungrown Flower 3.5g",
+                          "brand_name": "Snickle Fritz", "category_name": "Snickle Fritz Flower",
+                          "allocated_units": 100, "sold_units": 100, "unsold_units": 0,
+                          "sell_through": 1, "sold_revenue": 500}]}]}
+        result = build_dataset(api)
+        self.assertEqual(len(result["products"]), 1)
+        self.assertEqual(result["products"][0]["category_name"], "Snickle Fritz Flower")
+        self.assertEqual(result["products"][0]["signal"], "Limited history")
+        self.assertEqual(result["products"][0]["soldout_weeks"], 1)
 
 
 if __name__ == "__main__":
