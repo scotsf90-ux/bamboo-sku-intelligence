@@ -318,23 +318,14 @@ function ClosuresPanel({a, hide}) {
 
   const exportCsv = () => {
     const rows = [['Date','Store','Type','SKU / Product','Parent SKU Group','Category','Revenue','Units','Sales Rep','VMI Rep'].join(',')];
+    const { csvEscape, downloadBlob } = window.BambooExport;
     for (const c of filtered) {
-      const esc = (v) => {
-        if (v == null) return '';
-        const s = String(v);
-        return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
-      };
       const t = c.type || 'top-sku';
       const grp = c.skuGroup || (t === 'top-sku' ? c.skuName : '');
-      rows.push([c.ts, c.clientName, t, c.skuName, grp, c.category, c.rev, c.units, c.sr, c.vr].map(esc).join(','));
+      rows.push([c.ts, c.clientName, t, c.skuName, grp, c.category, c.rev, c.units, c.sr, c.vr].map(csvEscape).join(','));
     }
     const blob = new Blob([rows.join('\n')], {type: 'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `closures-${dateFrom}-to-${dateTo}${repFilter !== 'All' ? '-' + repFilter.replace(/\s+/g, '_') : ''}.csv`;
-    document.body.appendChild(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    downloadBlob(blob, `closures-${dateFrom}-to-${dateTo}${repFilter !== 'All' ? '-' + repFilter.replace(/\s+/g, '_') : ''}.csv`);
   };
 
   if (closures === null) return <div className="p-6 text-[12px] text-slate-500 font-mono">Loading closures…</div>;

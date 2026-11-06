@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = React;
-const { fmt$, fmt$d, fmtN, fmtPct, fmtNum, parseLastOrder } = window.BambooCore;
-const { Tag, TagChips, MiniBar, ScoreBar, Sparkline, Th, EmptyState } = window.BambooUI;
+const { fmt$, fmtN, fmtPct, fmtNum, parseLastOrder } = window.BambooCore;
+const { Tag, TagChips, ScoreBar, Sparkline, Th } = window.BambooUI;
 
 // ============================================================
 //   DRAWER — shared overlay shell with backdrop blur + animation
@@ -1028,7 +1028,6 @@ function RetailerDetail({a, clientId, onClose, onPickSku, onPickProduct, onExpor
   }, [a, cl, carrying]);
 
   const bundle = sortedMissing.slice(0, 10);
-  const bundleLift = bundle.reduce((s, x) => s + x.est, 0);
   const days = parseLastOrder(cl.ls, a.meta.endDate);
 
   // Projected order — top missing individual products by velocity, with a

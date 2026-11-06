@@ -225,4 +225,4 @@ function escHtml(s) {
   return String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 }
 
-window.BambooExport = { exportCallSheetCSV, exportCallSheetPrintable, downloadCSV };
+window.BambooExport = { exportCallSheetCSV, exportCallSheetPrintable, downloadCSV, csvEscape, downloadBlob };

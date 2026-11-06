@@ -93,6 +93,18 @@ def fetch_api():
     print(f"  got {len(body):,} bytes")
     return json.loads(body)
 
+def kept_category(p, rd):
+    """A product row's retail category, or None when the product or its category is dropped."""
+    if should_drop(p[1]): return None
+    gi=p[3] if len(p)>3 else None
+    cat=rd[gi][1] if (gi is not None and 0<=gi<len(rd)) else ""
+    return None if not cat or should_drop(cat) else cat
+
+def cached(cache, key, fn):
+    """Evaluate fn(key) on first use only: checks run once per client/product, and only for rows a fact uses."""
+    if key not in cache: cache[key]=fn(key)
+    return cache[key]
+
 def index(api, cli_meta_out):
     cd=api["dimensions"]["clients"]["rows"]; pd=api["dimensions"]["products"]["rows"]
     rd=api["dimensions"]["retail_categories"]["rows"]; reps=api["dimensions"]["reps"]["rows"]
@@ -105,19 +117,13 @@ def index(api, cli_meta_out):
         sr = clean_rep(rep_name(r[2]) if len(r)>2 else "")
         vr = clean_rep(rep_name(r[3]) if len(r)>3 else "")
         cli_meta_out[r[1]] = {"sr":sr,"vr":vr}
-    out=[]
+    tests={}; cats={}; out=[]
     for i in range(len(rows)):
-        ci=rows[i]; pi=cols[i]; rev=revc[i]
-        if rev<=0: continue
-        if ci is None or ci>=len(cd) or pi is None or pi>=len(pd): continue
-        client=cd[ci][1]
-        if is_test_client(client): continue
-        product=pd[pi][1]
-        if should_drop(product): continue
-        gi=pd[pi][3] if len(pd[pi])>3 else None
-        cat=rd[gi][1] if (gi is not None and 0<=gi<len(rd)) else ""
-        if not cat or should_drop(cat): continue
-        out.append((client,product,cat,rev,uts[i] if i<len(uts) else 0,los[i] if i<len(los) else None))
+        ci=rows[i]; pi=cols[i]
+        if revc[i]<=0 or ci is None or ci>=len(cd) or pi is None or pi>=len(pd): continue
+        if cached(tests, ci, lambda c: is_test_client(cd[c][1])): continue
+        if (cat:=cached(cats, pi, lambda p: kept_category(pd[p], rd))) is None: continue
+        out.append((cd[ci][1],pd[pi][1],cat,revc[i],uts[i] if i<len(uts) else 0,los[i] if i<len(los) else None))
     return out
 
 def compute_closures(baseline_api, curr_api, top_map):
