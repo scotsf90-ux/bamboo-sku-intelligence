@@ -293,14 +293,6 @@ function RepsPanel({a, onPickClient, onPickSku, onExportRep}) {
           </th>
         );
 
-        const tagColor = (t) => {
-          if (t === 'CALL NOW') return 'bg-emerald-600 text-white';
-          if (t === 'AT RISK') return 'bg-rose-50 text-rose-800 border border-rose-200';
-          if (t === 'HIGH UPSIDE') return 'bg-blue-50 text-blue-800 border border-blue-200';
-          if (t === 'CROSS-SELL') return 'bg-amber-50 text-amber-800 border border-amber-200';
-          return 'bg-slate-50 text-slate-600 border border-slate-200';
-        };
-
         // Export the currently filtered + sorted store list as CSV.
         const downloadStoresCsv = () => {
           const headers = ['Rank','Store','Sales Rep','VMI Rep','Tag','Opp Score','Revenue',

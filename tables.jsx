@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { useState, useMemo } = React;
 const { fmt$, fmtN, fmtPct, fmtNum } = window.BambooCore;
-const { Tag, TagChips, MiniBar, ScoreBar, Th } = window.BambooUI;
+const { Tag, TagChips, ScoreBar, Th } = window.BambooUI;
 
 // ============== Master SKU Table ==============
 function MasterSkuTable({a, onPick, search, setSearch, catFilter, setCatFilter, tagFilter, setTagFilter, view, setView}) {

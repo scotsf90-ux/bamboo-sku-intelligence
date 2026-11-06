@@ -1,6 +1,6 @@
 import unittest
 
-from refresh_sell_through import build_dataset, classify, percentile, weighted_sell_through
+from refresh_sell_through import build_dataset, classify, percentile
 
 
 def row(allocated, sold):
@@ -41,9 +41,6 @@ class SellThroughRulesTest(unittest.TestCase):
         signal, adjustment, *_ = classify(rows, 4, 100, 1, 2)
         self.assertNotEqual(signal, "Emerging shortage")
         self.assertEqual(adjustment, -10)
-
-    def test_weighted_sell_through_uses_units(self):
-        self.assertAlmostEqual(weighted_sell_through([row(100, 100), row(900, 0)]), 0.1)
 
     def test_short_history_flower_stays_in_dataset(self):
         api = {"allocations": [{

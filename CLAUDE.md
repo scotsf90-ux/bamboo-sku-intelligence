@@ -7,7 +7,7 @@ overrides it. This repo copy is canonical; it supersedes the CLAUDE.md Google
 Doc in Drive (last updated 2026-06-08).
 
 Owner: Rob (robertmckinley@gmail.com / robertmckinley-alt on GitHub)
-Last meaningful update: 2026-10-07
+Last meaningful update: 2026-11-06
 
 ---
 
@@ -159,9 +159,8 @@ Accessories, **all PICC → Prerolls** and **Vape Carry Case → Accessories**
 
 The cron's `_CAT_HINTS` is a separate copy of this logic for closures.json's
 category column — **keep the two in sync when adding rules**.
-data/category_overrides.json is a third, name-keyed override map applied in
-bcore.jsx (currently 3 legacy preroll entries, all redundant with adapter
-rules).
+(The old data/category_overrides.json map was never passed to bcore.jsx, so it
+never applied; removed 2026-11-06. Add category rules in the two places above.)
 
 ## 10. Penetration goals
 
@@ -200,7 +199,6 @@ clamped. Table caps at 1,500 rendered rows; CSV exports everything.
 | top_skus_per_priority_category.json | by hand | 20 priority cats + top-10s |
 | tracker_meta.json | by hand | spec version (2026-06-08-d) |
 | closure-overrides.json | by hand | (clientName, skuName) pairs to suppress |
-| category_overrides.json | by hand | manual category remaps (legacy) |
 | penetration_goals.json | by hand | name-keyed goals (see §10) |
 | allocation_sell_through.json | weekly Monday job | 12 completed allocation weeks for Sellouts |
 | dataset.json | stale | static fallback if the live API fails |

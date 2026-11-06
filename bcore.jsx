@@ -3,7 +3,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
 // ---------- formatters ----------
 const fmt$ = (v) => v == null || isNaN(v) ? '—' : '$' + Math.round(v).toLocaleString('en-US');
-const fmt$d = (v) => v == null || isNaN(v) ? '—' : '$' + (Math.round(v*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 const fmtN = (v) => v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString('en-US');
 const fmtPct = (v, d=1) => v == null || isNaN(v) ? '—' : (v*100).toFixed(d) + '%';
 const fmtNum = (v, d=1) => v == null || isNaN(v) ? '—' : v.toFixed(d);
@@ -44,7 +43,7 @@ function normalize(arr, getter) {
 }
 
 function buildAnalytics(data, skuWeights, storeWeights, hide) {
-  let { clients, skus, matrix, meta, products, penetrationGoals, categoryOverrides, clientProducts } = data;
+  let { clients, skus, matrix, meta, products, penetrationGoals, clientProducts } = data;
 
   // Per-brand exclusion. `hide` is an object {mb, sg, picc} — each true drops
   // those SKU groups, their products, AND matching matrix cells before any
@@ -87,16 +86,12 @@ function buildAnalytics(data, skuWeights, storeWeights, hide) {
     // Also rebuild the per-client clientProducts map so any reporting that
     // counts a client's bought-product set stays consistent.
     if (clientProducts) {
-      const droppedProducts = new Set();
       // Build a quick lookup of surviving product indices.
       const surviving = new Set((products || []).map(p => p.i));
       const newCP = new Map();
       clientProducts.forEach((pm, cIdx) => {
         const filtered = new Map();
-        pm.forEach((cell, pIdx) => {
-          if (surviving.has(pIdx)) filtered.set(pIdx, cell);
-          else droppedProducts.add(pIdx);
-        });
+        pm.forEach((cell, pIdx) => { if (surviving.has(pIdx)) filtered.set(pIdx, cell); });
         if (filtered.size) newCP.set(cIdx, filtered);
       });
       clientProducts = newCP;
@@ -131,11 +126,6 @@ function buildAnalytics(data, skuWeights, storeWeights, hide) {
     return (typeof v === 'number' && isFinite(v)) ? v : null;
   };
 
-  // Category overrides (data/category_overrides.json) — for SKU groups
-  // that are miscategorized upstream. Keyed by the same normalized SKU name.
-  const overrideLookup = categoryOverrides || {};
-  const getCategoryOverride = (sku) => overrideLookup[normName(sku && sku.n)] || null;
-
   // Index matrix by sku and by client
   const byClient = new Map();
   const bySku = new Map();
@@ -149,17 +139,9 @@ function buildAnalytics(data, skuWeights, storeWeights, hide) {
 
   // SKU enrichment
   const skuEnriched = skus.map(s => {
-    // Apply category override if configured (fixes miscategorized SKU groups).
-    const overrideC = getCategoryOverride(s);
-    if (overrideC) s = { ...s, c: overrideC };
     const rows = bySku.get(s.i) || [];
     const buyersWithRev = rows.filter(([c,r,u]) => r > 0);
     const stores = buyersWithRev.length;
-    const orderRows = rows.filter(([c,r,u]) => r > 0).reduce((acc, [c,r,u]) => {
-      const cl = clients[c];
-      acc.totalOrders += cl.o || 0;
-      return acc;
-    }, {totalOrders: 0});
     const unitsPerStore = stores ? s.u / stores : 0;
     const revPerStore = stores ? s.rev / stores : 0;
     const distPct = stores / totalStores;
@@ -231,7 +213,6 @@ function buildAnalytics(data, skuWeights, storeWeights, hide) {
     const highScore = s.score >= 60;
     const highVel = s.velocity >= byScore[Math.floor(byScore.length*0.25)]?.velocity;
     const highReord = s.reorderProxy >= 0.4;
-    const highDist = s.distPct >= 0.6;
     const lowDist = s.distPct < 0.4;
     const highOpp = s.oppEst >= byScore[Math.floor(byScore.length*0.25)]?.oppEst;
     const lowScore = s.score < 25;
@@ -338,7 +319,6 @@ function buildAnalytics(data, skuWeights, storeWeights, hide) {
   clientsEnriched.forEach(c => { c.oppScore = (c.oppRaw / maxStoreRaw) * 100; });
 
   // Store tags
-  const sortedByOpp = [...clientsEnriched].sort((a,b) => b.oppScore - a.oppScore);
   for (const cl of clientsEnriched) {
     const highOpp = cl.oppScore >= 70;
     const highRev = cl.rev >= meta.totalRevenue / totalStores * 1.5;
@@ -414,4 +394,4 @@ function parseLastOrder(dateStr, endDate) {
   return Math.floor((e - d) / (1000*60*60*24));
 }
 
-window.BambooCore = { buildAnalytics, DEFAULT_SKU_WEIGHTS, DEFAULT_STORE_WEIGHTS, useUrlState, fmt$, fmt$d, fmtN, fmtPct, fmtNum, parseLastOrder };
+window.BambooCore = { buildAnalytics, DEFAULT_SKU_WEIGHTS, DEFAULT_STORE_WEIGHTS, useUrlState, fmt$, fmtN, fmtPct, fmtNum, parseLastOrder };

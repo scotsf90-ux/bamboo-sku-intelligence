@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 const { buildAnalytics, DEFAULT_SKU_WEIGHTS, DEFAULT_STORE_WEIGHTS, useUrlState, fmt$, fmtN, fmtPct } = window.BambooCore;
-const { Tag, ExecStrip, WeightPanel, AppBar, Skeleton } = window.BambooUI;
+const { Tag, ExecStrip, AppBar, Skeleton } = window.BambooUI;
 const { MasterSkuTable, RetailerTable } = window.BambooTables;
 const { SkuDetail, RetailerDetail, DistributionMatrix, Buckets, ProductDetail } = window.BambooPanels;
 const { CategoryLeaderboards } = window.BambooCategories;
@@ -42,8 +42,8 @@ function App() {
 
   // Persisted state
   const [tab, setTab] = useUrlState('tab', 'skus');
-  const [skuW, setSkuW] = useUrlState('skuW', DEFAULT_SKU_WEIGHTS);
-  const [storeW, setStoreW] = useUrlState('storeW', DEFAULT_STORE_WEIGHTS);
+  const [skuW] = useUrlState('skuW', DEFAULT_SKU_WEIGHTS);
+  const [storeW] = useUrlState('storeW', DEFAULT_STORE_WEIGHTS);
   const [skuSearch, setSkuSearch] = useUrlState('skuQ', '');
   const [skuCat, setSkuCat] = useUrlState('skuC', 'All');
   const [skuTag, setSkuTag] = useUrlState('skuT', 'All');
@@ -92,8 +92,6 @@ function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [setTab, pickedSku, pickedClient, pickedProduct]);
-
-  const resetWeights = () => { setSkuW(DEFAULT_SKU_WEIGHTS); setStoreW(DEFAULT_STORE_WEIGHTS); };
 
   const TABS = [
     {id:'skus', label:'SKU Engine'},

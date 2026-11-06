@@ -93,6 +93,16 @@ def fetch_api():
     print(f"  got {len(body):,} bytes")
     return json.loads(body)
 
+def kept_categories(pd, rd):
+    """Per product row: its retail category, or None when the product or its category is dropped.
+    Run once per product instead of once per (store, product) fact row."""
+    out=[]
+    for p in pd:
+        gi=p[3] if len(p)>3 else None
+        cat=rd[gi][1] if (gi is not None and 0<=gi<len(rd)) else ""
+        out.append(None if should_drop(p[1]) or not cat or should_drop(cat) else cat)
+    return out
+
 def index(api, cli_meta_out):
     cd=api["dimensions"]["clients"]["rows"]; pd=api["dimensions"]["products"]["rows"]
     rd=api["dimensions"]["retail_categories"]["rows"]; reps=api["dimensions"]["reps"]["rows"]
@@ -105,19 +115,13 @@ def index(api, cli_meta_out):
         sr = clean_rep(rep_name(r[2]) if len(r)>2 else "")
         vr = clean_rep(rep_name(r[3]) if len(r)>3 else "")
         cli_meta_out[r[1]] = {"sr":sr,"vr":vr}
+    test_client=[is_test_client(r[1]) for r in cd]; cats=kept_categories(pd, rd)
     out=[]
     for i in range(len(rows)):
-        ci=rows[i]; pi=cols[i]; rev=revc[i]
-        if rev<=0: continue
-        if ci is None or ci>=len(cd) or pi is None or pi>=len(pd): continue
-        client=cd[ci][1]
-        if is_test_client(client): continue
-        product=pd[pi][1]
-        if should_drop(product): continue
-        gi=pd[pi][3] if len(pd[pi])>3 else None
-        cat=rd[gi][1] if (gi is not None and 0<=gi<len(rd)) else ""
-        if not cat or should_drop(cat): continue
-        out.append((client,product,cat,rev,uts[i] if i<len(uts) else 0,los[i] if i<len(los) else None))
+        ci=rows[i]; pi=cols[i]
+        if revc[i]<=0 or ci is None or ci>=len(cd) or pi is None or pi>=len(pd): continue
+        if test_client[ci] or cats[pi] is None: continue
+        out.append((cd[ci][1],pd[pi][1],cats[pi],revc[i],uts[i] if i<len(uts) else 0,los[i] if i<len(los) else None))
     return out
 
 def compute_closures(baseline_api, curr_api, top_map):

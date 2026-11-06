@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = React;
 const { buildAnalytics, DEFAULT_SKU_WEIGHTS, DEFAULT_STORE_WEIGHTS, useUrlState,
-        fmt$, fmt$d, fmtN, fmtPct, fmtNum, parseLastOrder } = window.BambooCore;
+        fmt$, fmtN, fmtPct, fmtNum, parseLastOrder } = window.BambooCore;
 
 // ============== Premium pill / tag ==============
 const TAG_STYLES = {
@@ -55,21 +55,6 @@ function TagChips({options, value, onChange, counts}) {
   );
 }
 
-function Trend({d}) {
-  if (d === 'up') return <span className="text-emerald-600 font-mono" title="Trending up">↑</span>;
-  if (d === 'down') return <span className="text-rose-600 font-mono" title="Trending down">↓</span>;
-  return <span className="text-slate-400 font-mono" title="Flat">→</span>;
-}
-
-function MiniBar({value, max, color='#0b1220'}) {
-  const w = max ? Math.max(2, (value/max)*100) : 0;
-  return (
-    <div className="w-full h-1 rounded-sm overflow-hidden" style={{background: '#eef0f3'}}>
-      <div className="h-full transition-all" style={{width:w+'%', background: color}}></div>
-    </div>
-  );
-}
-
 function ScoreBar({score, height=6}) {
   const cls = score >= 70 ? 'score-grad-high' : score >= 40 ? 'score-grad-mid' : 'score-grad-low';
   return (
@@ -98,21 +83,6 @@ function Sparkline({values, w=64, h=18, color='#059669', fill=true}) {
       <path d={path} fill="none" stroke={color} strokeWidth="1.4" />
       <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="1.6" fill={color} />
     </svg>
-  );
-}
-
-// ============== Slider ==============
-function Slider({label, value, onChange, min=0, max=1, step=0.01, hint}) {
-  return (
-    <label className="block group" title={hint}>
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="text-[11px] text-slate-700 group-hover:text-slate-900">{label}</span>
-        <span className="text-[10px] font-mono tabular-nums text-slate-500">{Math.round(value*100)}%</span>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-             onChange={e => onChange(parseFloat(e.target.value))}
-             className="w-full cursor-pointer" />
-    </label>
   );
 }
 
@@ -198,61 +168,6 @@ function KpiCell({label, value, sub, accent, spark}) {
   );
 }
 
-// ============== Weight Panel ==============
-function WeightPanel({skuW, setSkuW, storeW, setStoreW, onReset}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="bg-white border-b border-slate-200">
-      <button onClick={() => setOpen(!open)} className="w-full px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-50 flex justify-between items-center">
-        <span className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          Scoring Weights
-        </span>
-        <span className="font-mono text-slate-400 text-[10px]">{open ? '▾' : '▸'}</span>
-      </button>
-      {open && (
-        <div className="px-3 pb-3 space-y-4">
-          <div>
-            <div className="flex justify-between items-baseline mb-2">
-              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">SKU Score</h4>
-              <button onClick={onReset} className="text-[10px] text-slate-500 hover:text-slate-900 underline decoration-dotted">reset</button>
-            </div>
-            <div className="space-y-2.5">
-              <Slider label="Revenue" value={skuW.revenue} onChange={v => setSkuW({...skuW, revenue:v})} hint="Total $ contribution across all stores" />
-              <Slider label="Units" value={skuW.units} onChange={v => setSkuW({...skuW, units:v})} hint="Total units sold across all stores" />
-              <Slider label="Velocity" value={skuW.velocity} onChange={v => setSkuW({...skuW, velocity:v})} hint="Units sold per carrying store per month" />
-              <Slider label="Distribution" value={skuW.distribution} onChange={v => setSkuW({...skuW, distribution:v})} hint="% of stores carrying this SKU" />
-              <Slider label="Reorder" value={skuW.reorder} onChange={v => setSkuW({...skuW, reorder:v})} hint="Estimated reorder frequency" />
-              <Slider label="Opportunity" value={skuW.opportunity} onChange={v => setSkuW({...skuW, opportunity:v})} hint="Estimated $ left on the table at non-carrying stores" />
-            </div>
-          </div>
-          <div className="border-t border-slate-200 pt-3">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Store Opportunity</h4>
-            <div className="space-y-2.5">
-              <Slider label="Missing Top SKUs" value={storeW.missingTop} onChange={v => setStoreW({...storeW, missingTop:v})} hint="How much weight to put on top-ranked SKUs they don't carry" />
-              <Slider label="Category Gap" value={storeW.categoryGap} onChange={v => setStoreW({...storeW, categoryGap:v})} hint="Categories with zero coverage" />
-              <Slider label="Spend Potential" value={storeW.spendPotential} onChange={v => setStoreW({...storeW, spendPotential:v})} hint="Current spend vs peer-store benchmark" />
-              <Slider label="Order Frequency" value={storeW.frequency} onChange={v => setStoreW({...storeW, frequency:v})} hint="Cadence vs peer-store benchmark" />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============== Empty state ==============
-function EmptyState({title, hint, action, onAction, icon}) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div className="w-14 h-14 rounded-full ink-grad flex items-center justify-center mb-3 text-emerald-300 text-lg">{icon || '∅'}</div>
-      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      {hint && <p className="text-xs text-slate-500 mt-1 max-w-xs">{hint}</p>}
-      {action && <button onClick={onAction} className="btn btn-primary mt-3">{action}</button>}
-    </div>
-  );
-}
-
 // ============== Loading skeleton ==============
 function Skeleton() {
   return (
@@ -326,4 +241,4 @@ function AppBar({tabs, tab, setTab, onBulkExport, hideMB, setHideMB, hideSG, set
   );
 }
 
-window.BambooUI = { Tag, TagChips, Trend, MiniBar, ScoreBar, Sparkline, Slider, Th, ExecStrip, KpiCell, WeightPanel, EmptyState, Skeleton, AppBar, TAG_STYLES };
+window.BambooUI = { Tag, TagChips, ScoreBar, Sparkline, Th, ExecStrip, KpiCell, Skeleton, AppBar, TAG_STYLES };
